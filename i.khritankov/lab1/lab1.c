@@ -8,13 +8,10 @@
 #include <limits.h> // PATH_MAX
 
 extern char **environ; // массив строк окружения PATH HOME USER etc
+static long nproc_override = -1; // значение для -u в этом запуске, системный лимит не меняет
 
 
-/*
- * Преобразует строку в неотрицательное число.
- * Используется для -U и -C.
- */
-static int get_number(const char *str, long *value)
+static int get_number(const char *str, long *value) // строка в неотрицательное число
 {
     char *end; // сюда strtol запишет, где закончил читать число
 
@@ -30,12 +27,7 @@ static int get_number(const char *str, long *value)
 }
 
 
-/*
- * Читает опции с помощью getopt().
- * Рекурсивный вызов позволяет выполнить их
- * в обратном порядке: справа налево.
- */
-static int process_options(int argc, char *argv[])
+static int process_options(int argc, char *argv[]) // выполняем опции справа налево
 {
     int option; // текущая опция
     int bad_option; // неизвестная опция или опция без аргумента
@@ -54,22 +46,12 @@ static int process_options(int argc, char *argv[])
         return 0;
     }
 
-    /*
-     * Сохраняем значения, потому что следующий
-     * вызов getopt() изменит optarg и optopt.
-     */
-    argument = optarg; // сохраняем аргумент текущей опции
-    bad_option = optopt; // сохраняем ошибочную опцию
+    argument = optarg; // следующий getopt изменит optarg
+    bad_option = optopt; // следующий getopt изменит optopt
 
-    /*
-     * Сначала обрабатываем все опции справа.
-     */
     status = process_options(argc, argv); // рекурсивно идём до самой правой опции
 
-    /*
-     * После возврата выполняем текущую опцию.
-     */
-    switch (option)
+    switch (option) // выполняем текущую опцию после всех опций справа
     {
         case 'i':
             printf("Real UID: %ld\n", (long)getuid()); // реальный UID
@@ -93,19 +75,25 @@ static int process_options(int argc, char *argv[])
             break;
 
         case 'u':
-            if (getrlimit(RLIMIT_NPROC, &limit) == -1) // получаем лимит количества процессов пользователя
+            errno = 0;
+            value = nproc_override;
+            if (value == -1) // -U ещё не задавала локальное значение
             {
-                perror("getrlimit");
+                value = sysconf(_SC_CHILD_MAX); // системный лимит процессов пользователя
+            }
+
+            if (value == -1 && errno != 0)
+            {
+                perror("sysconf");
                 status = 1;
             }
-            else if (limit.rlim_cur == RLIM_INFINITY) // если лимита нет
+            else if (value == -1) // sysconf не сообщает конечного лимита
             {
                 printf("unlimited\n");
             }
             else
             {
-                printf("%llu\n",
-                       (unsigned long long)limit.rlim_cur); // печатаем текущий soft limit
+                printf("%ld\n", value);
             }
             break;
 
@@ -115,20 +103,10 @@ static int process_options(int argc, char *argv[])
                 fprintf(stderr, "Invalid ulimit value: %s\n", argument);
                 status = 1;
             }
-            else if (getrlimit(RLIMIT_NPROC, &limit) == -1) // получаем текущие лимиты процессов
-            {
-                perror("getrlimit");
-                status = 1;
-            }
             else
             {
-                limit.rlim_cur = (rlim_t)value; // устанавливаем новый soft limit процессов
-
-                if (setrlimit(RLIMIT_NPROC, &limit) == -1) // применяем новый лимит
-                {
-                    perror("setrlimit");
-                    status = 1;
-                }
+                nproc_override = value; // сохраняем только в нашей программе
+                printf("%ld\n", value);
             }
             break;
 
@@ -218,6 +196,24 @@ static int process_options(int argc, char *argv[])
 
 int main(int argc, char *argv[])
 {
+    if (argc == 1) // без аргументов выводим справку
+    {
+        printf("Usage: %s [options]\n"
+               "Options are executed from right to left.\n"
+               "  -i            Print real and effective UID/GID\n"
+               "  -s            Become a process group leader\n"
+               "  -p            Print PID, PPID and PGID\n"
+               "  -u            Print user process limit or local value\n"
+               "  -Uvalue       Set and print local value for -u (this run only)\n"
+               "  -c            Print core file limit in bytes\n"
+               "  -Csize        Set core file limit in bytes\n"
+               "  -d            Print current directory\n"
+               "  -v            Print environment variables\n"
+               "  -Vname=value  Set an environment variable\n",
+               argv[0]);
+        return 0;
+    }
+
     opterr = 0; // запрещаем getopt самому печатать ошибки
 
     return process_options(argc, argv); // запускаем обработку всех опций
