@@ -37,6 +37,24 @@ void deleteStringList(StringNode *head){
     }
 }
 
+void printVisibleString(const char *text){
+    const unsigned char *p = (const unsigned char *)text;
+
+    unsigned char c = '\0';
+    while(*p != '\0'){
+        c = *p;
+        if(c < 32 || c == 127){
+            putchar('^');
+            putchar(c == 127 ? '?' : c + 64);
+        }
+        else{
+            putchar(c);
+        }
+        p++;
+    }
+    putchar('\n');
+}
+
 int main(void){
 
     StringNode *head = NULL;
@@ -77,7 +95,7 @@ int main(void){
     }
 
     for(StringNode *current = head; current != NULL; current = current->next){
-        printf("%s\n", current->string);
+        printVisibleString(current->string);
     }
 
     deleteStringList(head);
