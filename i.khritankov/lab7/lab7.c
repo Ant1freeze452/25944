@@ -1,4 +1,4 @@
-#define _XOPEN_SOURCE 500
+#define _XOPEN_SOURCE 500 // включаем объявления функций POSIX
 
 #include <stdio.h> // printf, fgets, perror
 #include <stdlib.h> // realloc, free, strtol
@@ -18,22 +18,22 @@ struct Line
 
 static volatile sig_atomic_t timed_out = 0; // флаг изменяет обработчик сигнала
 
-static void timeout_handler(int signal_number)
+static void timeout_handler(int signal_number) // обработчик сигнала окончания пяти секунд
 {
     (void)signal_number;
     timed_out = 1; // ввод/вывод внутри обработчика не выполняем
 }
 
-static int make_table(const char *data, size_t size, struct Line **table, size_t *count)
+static int make_table(const char *data, size_t size, struct Line **table, size_t *count) // индексируем строки в отображении файла
 {
-    struct Line *next;
-    size_t start = 0;
-    size_t end;
+    struct Line *next; // новый адрес таблицы после realloc
+    size_t start = 0; // начало текущей строки в отображении
+    size_t end; // позиция сразу после текущей строки
 
     while (start < size)
     {
-        end = start;
-        while (end < size && data[end] != '\n')
+        end = start; // начинаем поиск конца строки
+        while (end < size && data[end] != '\n') // ищем перевод строки, не выходя за размер файла
         {
             end++;
         }
@@ -42,49 +42,49 @@ static int make_table(const char *data, size_t size, struct Line **table, size_t
             end++; // включаем перевод строки в её длину
         }
 
-        next = realloc(*table, (*count + 1) * sizeof(**table));
+        next = realloc(*table, (*count + 1) * sizeof(**table)); // расширяем таблицу на одну запись
         if (next == NULL)
         {
             perror("realloc");
             return -1;
         }
-        *table = next;
-        (*table)[*count].offset = (off_t)start;
-        (*table)[*count].length = end - start;
-        (*count)++;
-        start = end;
+        *table = next; // сохраняем новый адрес выделенной памяти
+        (*table)[*count].offset = (off_t)start; // сохраняем смещение начала строки
+        (*table)[*count].length = end - start; // вычисляем длину строки по двум позициям
+        (*count)++; // увеличиваем количество записей
+        start = end; // переходим к следующей строке
     }
     return 0;
 }
 
-static int print_text(const char *data, off_t offset, size_t length)
+static int print_text(const char *data, off_t offset, size_t length) // выводим диапазон прямо из отображения
 {
-    size_t portion;
+    size_t portion; // размер очередной порции вывода
 
     while (length > 0)
     {
-        portion = length < 1024 ? length : 1024;
+        portion = length < 1024 ? length : 1024; // ограничиваем одну порцию вывода 1024 байтами
         printf("%.*s", (int)portion, data + offset); // выводим прямо из отображения
-        offset += (off_t)portion;
-        length -= portion;
+        offset += (off_t)portion; // сдвигаем начало следующей порции
+        length -= portion; // учитываем уже выведенные байты
     }
     return 0;
 }
 
-static int process_file(const char *data, size_t size)
+static int process_file(const char *data, size_t size) // обрабатываем запросы к отображённому файлу
 {
-    struct Line *table = NULL;
-    size_t count = 0;
-    char input[64];
-    char *end;
-    char *result;
-    long number;
-    int ch;
-    int status = 0;
+    struct Line *table = NULL; // динамическая таблица строк
+    size_t count = 0; // количество строк в таблице
+    char input[64]; // буфер для ввода номера строки
+    char *end; // первый символ после разобранного числа
+    char *result; // результат чтения номера строки
+    long number; // номер строки, введённый пользователем
+    int ch; // символ при чтении остатка длинного ввода
+    int status = 0; // пока ошибок нет
 
-    if (make_table(data, size, &table, &count) == -1)
+    if (make_table(data, size, &table, &count) == -1) // строим таблицу по отображённым данным
     {
-        free(table);
+        free(table); // освобождаем уже созданные записи при ошибке
         return 1;
     }
 
@@ -92,9 +92,9 @@ static int process_file(const char *data, size_t size)
     {
         printf("Line number (0 to exit): ");
         fflush(stdout); // приглашение видно до ожидания ввода
-        timed_out = 0;
+        timed_out = 0; // сбрасываем флаг перед новым запросом
         alarm(5); // пять секунд на каждый запрос
-        result = fgets(input, sizeof(input), stdin);
+        result = fgets(input, sizeof(input), stdin); // читаем номер строки под действием таймера
         if (result != NULL && strchr(input, '\n') == NULL && !feof(stdin) && !timed_out)
         {
             ch = fgetc(stdin); // ждём конец номера, даже если буфер заполнился
@@ -112,7 +112,7 @@ static int process_file(const char *data, size_t size)
             }
         }
         alarm(0); // отменяем таймер после ввода
-        if (timed_out)
+        if (timed_out) // пять секунд истекли: выводим файл и завершаемся
         {
             printf("\n");
             if (count > 0 && print_text(data, 0, (size_t)(table[count - 1].offset + table[count - 1].length)) == -1)
@@ -121,7 +121,7 @@ static int process_file(const char *data, size_t size)
             }
             break;
         }
-        if (result == NULL)
+        if (result == NULL) // ввод завершён или произошла ошибка чтения
         {
             if (ferror(stdin))
             {
@@ -131,15 +131,15 @@ static int process_file(const char *data, size_t size)
             break;
         }
 
-        errno = 0;
-        number = strtol(input, &end, 10);
+        errno = 0; // сбрасываем ошибку перед преобразованием числа
+        number = strtol(input, &end, 10); // переводим номер из строки в десятичное число
         if (errno != 0 || end == input || (*end != '\n' && *end != '\0') ||
-            number < 0 || (unsigned long)number > count)
+            number < 0 || (unsigned long)number > count) // отклоняем ошибки преобразования и номера вне таблицы
         {
             fprintf(stderr, "Invalid line number\n");
             continue;
         }
-        if (number == 0)
+        if (number == 0) // ноль означает завершение работы
         {
             break;
         }
@@ -150,27 +150,27 @@ static int process_file(const char *data, size_t size)
         }
     }
 
-    free(table);
+    free(table); // освобождаем таблицу строк перед выходом
     return status;
 }
 
 int main(int argc, char *argv[])
 {
-    int fd;
-    int status;
-    struct stat info;
-    struct sigaction action;
-    char *data = NULL;
-    size_t size;
+    int fd; // дескриптор открытого файла
+    int status; // код завершения программы
+    struct stat info; // размер и другие атрибуты файла
+    struct sigaction action; // настройки обработчика SIGALRM
+    char *data = NULL; // адрес отображения, у пустого файла его нет
+    size_t size; // размер файла в байтах
 
-    if (argc != 2)
+    if (argc != 2) // ожидаем ровно один аргумент: путь к файлу
     {
         fprintf(stderr, "Usage: %s file\n", argv[0]);
         return 1;
     }
 
-    action.sa_handler = timeout_handler;
-    sigemptyset(&action.sa_mask);
+    action.sa_handler = timeout_handler; // назначаем функцию для сигнала таймера
+    sigemptyset(&action.sa_mask); // не блокируем дополнительные сигналы в обработчике
     action.sa_flags = 0;
     if (sigaction(SIGALRM, &action, NULL) == -1)
     {
@@ -178,7 +178,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    fd = open(argv[1], O_RDONLY);
+    fd = open(argv[1], O_RDONLY); // открываем указанный файл только для чтения
     if (fd == -1)
     {
         perror("open");
@@ -191,10 +191,10 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    size = (size_t)info.st_size;
+    size = (size_t)info.st_size; // сохраняем размер, полученный через fstat
     if (size > 0) // пустой файл нельзя отображать через mmap
     {
-        data = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
+        data = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0); // отображаем весь файл только для чтения
         if (data == MAP_FAILED)
         {
             perror("mmap");
@@ -203,13 +203,13 @@ int main(int argc, char *argv[])
         }
     }
 
-    status = process_file(data, size);
-    if (size > 0 && munmap(data, size) == -1)
+    status = process_file(data, size); // ищем строки непосредственно в отображённой памяти
+    if (size > 0 && munmap(data, size) == -1) // удаляем отображение файла перед выходом
     {
         perror("munmap");
         status = 1;
     }
-    if (close(fd) == -1)
+    if (close(fd) == -1) // закрываем файловый дескриптор
     {
         perror("close");
         status = 1;

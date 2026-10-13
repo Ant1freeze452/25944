@@ -1,4 +1,4 @@
-#define _XOPEN_SOURCE 500
+#define _XOPEN_SOURCE 500 // включаем объявления функций POSIX
 
 #include <stdio.h> // printf, perror
 #include <stdlib.h> // putenv
@@ -20,9 +20,9 @@ int main(void)
         "PST",
         "PDT"
     };
-    int i;
+    int i; // индекс часового пояса и подписи
 
-    if (time(&now) == (time_t)-1)
+    if (time(&now) == (time_t)-1) // получаем один текущий момент для всех трёх строк
     {
         perror("time");
         return 1;
@@ -30,7 +30,7 @@ int main(void)
 
     for (i = 0; i < 3; i++) // один момент времени в трёх вариантах
     {
-        if (putenv(zones[i]) != 0)
+        if (putenv(zones[i]) != 0) // устанавливаем нужный часовой пояс через TZ
         {
             perror("putenv");
             return 1;

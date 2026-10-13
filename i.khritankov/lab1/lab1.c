@@ -1,14 +1,14 @@
-#define _XOPEN_SOURCE 500
+#define _XOPEN_SOURCE 500 // включаем объявления функций POSIX
 
-#include <stdio.h> // стандарт ввод/вывод printf perror
+#include <stdio.h> // printf, fprintf, perror
 #include <stdlib.h> // стандартная библиотека для strtol
-#include <unistd.h> // всякая всячина из Unix, в том числе getopt
+#include <unistd.h> // getopt, идентификаторы процесса и функции окружения
 #include <sys/resource.h> // getrlimit и setrlimit, ограничения ресурсов процесса
 #include <errno.h> // глобальная переменная errno для обработки ошибок
 #include <limits.h> // PATH_MAX
 
-extern char **environ; // массив строк окружения PATH HOME USER etc
-static long nproc_override = -1; // значение для -u в этом запуске, системный лимит не меняет
+extern char **environ; // массив переменных окружения, заканчивается NULL
+static long nproc_override = -1; // локальное значение -u; ограничение ядра не изменяется
 
 
 static int get_number(const char *str, long *value) // строка в неотрицательное число
@@ -79,7 +79,7 @@ static int process_options(int argc, char *argv[]) // выполняем опц�
             value = nproc_override;
             if (value == -1) // -U ещё не задавала локальное значение
             {
-                value = sysconf(_SC_CHILD_MAX); // системный лимит процессов пользователя
+                value = sysconf(_SC_CHILD_MAX); // предел числа дочерних процессов, сообщаемый системой
             }
 
             if (value == -1 && errno != 0)
@@ -214,7 +214,7 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    opterr = 0; // запрещаем getopt самому печатать ошибки
+    opterr = 0; // сообщения об ошибках опций выводим сами
 
     return process_options(argc, argv); // запускаем обработку всех опций
 }

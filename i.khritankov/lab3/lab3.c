@@ -1,12 +1,12 @@
 #include <stdio.h> // printf, fopen, fclose, perror
 #include <unistd.h> // getuid, geteuid, setuid
 
-static int check_file(void)
+static int check_file(void) // печатаем UID и проверяем открытие файла
 {
-    FILE *file;
+    FILE *file; // указатель на открытый поток файла
 
-    printf("Real UID: %ld\n", (long)getuid());
-    printf("Effective UID: %ld\n", (long)geteuid());
+    printf("Real UID: %ld\n", (long)getuid()); // показываем пользователя, запустившего программу
+    printf("Effective UID: %ld\n", (long)geteuid()); // показываем UID, используемый для проверки доступа
     fflush(stdout); // выводим UID до возможного сообщения об ошибке
 
     file = fopen("data.txt", "r"); // файл с правами 600 в текущем каталоге
@@ -28,9 +28,9 @@ static int check_file(void)
 
 int main(void)
 {
-    int status;
+    int status; // код завершения программы
 
-    status = check_file();
+    status = check_file(); // проверяем доступ с исходными идентификаторами
 
     if (setuid(getuid()) == -1) // делаем эффективный UID равным реальному
     {
@@ -38,7 +38,7 @@ int main(void)
         return 1;
     }
 
-    if (check_file() != 0)
+    if (check_file() != 0) // повторяем проверку после смены эффективного UID
     {
         status = 1;
     }

@@ -1,4 +1,4 @@
-#define _XOPEN_SOURCE 500
+#define _XOPEN_SOURCE 500 // включаем объявления функций POSIX
 
 #include <stdio.h> // printf, fgets, perror
 #include <stdlib.h> // realloc, free, strtol
@@ -16,19 +16,19 @@ struct Line
 
 static volatile sig_atomic_t timed_out = 0; // флаг изменяет обработчик сигнала
 
-static void timeout_handler(int signal_number)
+static void timeout_handler(int signal_number) // обработчик сигнала окончания пяти секунд
 {
     (void)signal_number;
     timed_out = 1; // ввод/вывод внутри обработчика не выполняем
 }
 
-static int make_table(int fd, struct Line **table, size_t *count)
+static int make_table(int fd, struct Line **table, size_t *count) // строим таблицу смещений и длин строк
 {
-    struct Line *next;
-    off_t offset;
-    size_t length;
-    char ch;
-    ssize_t result;
+    struct Line *next; // новый адрес таблицы после realloc
+    off_t offset; // смещение от начала файла в байтах
+    size_t length; // длина текущей строки в байтах
+    char ch; // очередной символ файла
+    ssize_t result; // число прочитанных байт или -1 при ошибке
 
     while (1)
     {
@@ -38,11 +38,11 @@ static int make_table(int fd, struct Line **table, size_t *count)
             perror("lseek");
             return -1;
         }
-        length = 0;
+        length = 0; // начинаем подсчёт длины новой строки
         while (1)
         {
             result = read(fd, &ch, 1); // ищем перевод строки
-            if (result == -1 && errno == EINTR)
+            if (result == -1 && errno == EINTR) // повторяем чтение, прерванное сигналом
             {
                 continue;
             }
@@ -51,31 +51,31 @@ static int make_table(int fd, struct Line **table, size_t *count)
                 perror("read");
                 return -1;
             }
-            if (result == 0)
+            if (result == 0) // достигнут конец файла
             {
                 break;
             }
-            length++;
+            length++; // учитываем прочитанный символ
             if (ch == '\n')
             {
                 break;
             }
         }
 
-        if (length == 0)
+        if (length == 0) // после конца файла новую строку не добавляем
         {
             break;
         }
-        next = realloc(*table, (*count + 1) * sizeof(**table));
+        next = realloc(*table, (*count + 1) * sizeof(**table)); // расширяем таблицу на одну запись
         if (next == NULL)
         {
             perror("realloc");
             return -1;
         }
-        *table = next;
-        (*table)[*count].offset = offset;
-        (*table)[*count].length = length;
-        (*count)++;
+        *table = next; // сохраняем новый адрес выделенной памяти
+        (*table)[*count].offset = offset; // запоминаем начало строки
+        (*table)[*count].length = length; // запоминаем точное количество байт строки
+        (*count)++; // увеличиваем количество записей
         if (result == 0) // последняя строка может не иметь перевода строки
         {
             break;
@@ -84,22 +84,22 @@ static int make_table(int fd, struct Line **table, size_t *count)
     return 0;
 }
 
-static int print_text(int fd, off_t offset, size_t length)
+static int print_text(int fd, off_t offset, size_t length) // читаем и выводим заданный диапазон файла
 {
-    char buffer[1025];
-    size_t portion;
-    ssize_t result;
+    char buffer[1025]; // 1024 байта текста и место для завершающего нуля
+    size_t portion; // размер очередной порции вывода
+    ssize_t result; // число прочитанных байт или -1 при ошибке
 
-    if (lseek(fd, offset, SEEK_SET) == (off_t)-1)
+    if (lseek(fd, offset, SEEK_SET) == (off_t)-1) // переходим к началу выбранного диапазона
     {
         perror("lseek");
         return -1;
     }
     while (length > 0)
     {
-        portion = length < sizeof(buffer) - 1 ? length : sizeof(buffer) - 1;
+        portion = length < sizeof(buffer) - 1 ? length : sizeof(buffer) - 1; // берём остаток строки или полную порцию
         result = read(fd, buffer, portion); // читаем только длину выбранной строки
-        if (result == -1 && errno == EINTR)
+        if (result == -1 && errno == EINTR) // повторяем чтение, прерванное сигналом
         {
             continue;
         }
@@ -113,27 +113,27 @@ static int print_text(int fd, off_t offset, size_t length)
             fprintf(stderr, "File ended before the indexed line was read\n");
             return -1;
         }
-        buffer[result] = '\0';
-        printf("%s", buffer);
-        length -= (size_t)result;
+        buffer[result] = '\0'; // завершаем прочитанный текст нулём для printf
+        printf("%s", buffer); // выводим прочитанную часть текста
+        length -= (size_t)result; // уменьшаем количество оставшихся байт
     }
     return 0;
 }
 
-static int process_file(int fd)
+static int process_file(int fd) // обрабатываем запросы номеров строк
 {
-    struct Line *table = NULL;
-    size_t count = 0;
-    char input[64];
-    char *end;
-    char *result;
-    long number;
-    int ch;
-    int status = 0;
+    struct Line *table = NULL; // динамическая таблица строк
+    size_t count = 0; // количество строк в таблице
+    char input[64]; // буфер для ввода номера строки
+    char *end; // первый символ после разобранного числа
+    char *result; // результат чтения номера строки
+    long number; // номер строки, введённый пользователем
+    int ch; // символ при чтении остатка длинного ввода
+    int status = 0; // пока ошибок нет
 
-    if (make_table(fd, &table, &count) == -1)
+    if (make_table(fd, &table, &count) == -1) // сначала индексируем все строки файла
     {
-        free(table);
+        free(table); // освобождаем уже созданные записи при ошибке
         return 1;
     }
 
@@ -141,9 +141,9 @@ static int process_file(int fd)
     {
         printf("Line number (0 to exit): ");
         fflush(stdout); // приглашение видно до ожидания ввода
-        timed_out = 0;
+        timed_out = 0; // сбрасываем флаг перед новым запросом
         alarm(5); // пять секунд на каждый запрос
-        result = fgets(input, sizeof(input), stdin);
+        result = fgets(input, sizeof(input), stdin); // читаем номер строки под действием таймера
         if (result != NULL && strchr(input, '\n') == NULL && !feof(stdin) && !timed_out)
         {
             ch = fgetc(stdin); // ждём конец номера, даже если буфер заполнился
@@ -161,7 +161,7 @@ static int process_file(int fd)
             }
         }
         alarm(0); // отменяем таймер после ввода
-        if (timed_out)
+        if (timed_out) // пять секунд истекли: выводим файл и завершаемся
         {
             printf("\n");
             if (count > 0 && print_text(fd, 0, (size_t)(table[count - 1].offset + table[count - 1].length)) == -1)
@@ -170,7 +170,7 @@ static int process_file(int fd)
             }
             break;
         }
-        if (result == NULL)
+        if (result == NULL) // ввод завершён или произошла ошибка чтения
         {
             if (ferror(stdin))
             {
@@ -180,15 +180,15 @@ static int process_file(int fd)
             break;
         }
 
-        errno = 0;
-        number = strtol(input, &end, 10);
+        errno = 0; // сбрасываем ошибку перед преобразованием числа
+        number = strtol(input, &end, 10); // переводим номер из строки в десятичное число
         if (errno != 0 || end == input || (*end != '\n' && *end != '\0') ||
-            number < 0 || (unsigned long)number > count)
+            number < 0 || (unsigned long)number > count) // отклоняем ошибки преобразования и номера вне таблицы
         {
             fprintf(stderr, "Invalid line number\n");
             continue;
         }
-        if (number == 0)
+        if (number == 0) // ноль означает завершение работы
         {
             break;
         }
@@ -199,24 +199,24 @@ static int process_file(int fd)
         }
     }
 
-    free(table);
+    free(table); // освобождаем таблицу строк перед выходом
     return status;
 }
 
 int main(int argc, char *argv[])
 {
-    int fd;
-    int status;
-    struct sigaction action;
+    int fd; // дескриптор открытого файла
+    int status; // код завершения программы
+    struct sigaction action; // настройки обработчика SIGALRM
 
-    if (argc != 2)
+    if (argc != 2) // ожидаем ровно один аргумент: путь к файлу
     {
         fprintf(stderr, "Usage: %s file\n", argv[0]);
         return 1;
     }
 
-    action.sa_handler = timeout_handler;
-    sigemptyset(&action.sa_mask);
+    action.sa_handler = timeout_handler; // назначаем функцию для сигнала таймера
+    sigemptyset(&action.sa_mask); // не блокируем дополнительные сигналы в обработчике
     action.sa_flags = 0; // fgets должен прерываться сигналом SIGALRM
     if (sigaction(SIGALRM, &action, NULL) == -1)
     {
@@ -224,15 +224,15 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    fd = open(argv[1], O_RDONLY);
+    fd = open(argv[1], O_RDONLY); // открываем указанный файл только для чтения
     if (fd == -1)
     {
         perror("open");
         return 1;
     }
 
-    status = process_file(fd);
-    if (close(fd) == -1)
+    status = process_file(fd); // строим таблицу и обрабатываем запросы
+    if (close(fd) == -1) // закрываем файловый дескриптор
     {
         perror("close");
         status = 1;
