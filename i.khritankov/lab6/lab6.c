@@ -129,6 +129,7 @@ static int process_file(int fd) // обрабатываем запросы но�
     char *result; // результат чтения номера строки
     long number; // номер строки, введённый пользователем
     int ch; // символ при чтении остатка длинного ввода
+    int first_input = 1; // ограничиваем время только первой попытки ввода
     int status = 0; // пока ошибок нет
 
     if (make_table(fd, &table, &count) == -1) // сначала индексируем все строки файла
@@ -142,8 +143,12 @@ static int process_file(int fd) // обрабатываем запросы но�
         printf("Line number (0 to exit): ");
         fflush(stdout); // приглашение видно до ожидания ввода
         timed_out = 0; // сбрасываем флаг перед новым запросом
-        alarm(5); // пять секунд на каждый запрос
-        result = fgets(input, sizeof(input), stdin); // читаем номер строки под действием таймера
+        if (first_input) // последующие запросы работают без ограничения времени
+        {
+            alarm(5); // пять секунд только на первый ввод
+            first_input = 0;
+        }
+        result = fgets(input, sizeof(input), stdin); // читаем номер строки, первый ввод ограничен таймером
         if (result != NULL && strchr(input, '\n') == NULL && !feof(stdin) && !timed_out)
         {
             ch = fgetc(stdin); // ждём конец номера, даже если буфер заполнился
