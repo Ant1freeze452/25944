@@ -17,9 +17,10 @@ main()
     tzset();
 
     sp = localtime(&now);
-    printf("California time: %d/%d/%02d %d:%02d %s\n",
+    printf("California time: %d/%d/%02d %d:%02d:%02d %s\n",
         sp->tm_mon + 1, sp->tm_mday,
         sp->tm_year + 1900, sp->tm_hour,
-        sp->tm_min, sp->tm_sec, sp->tm_isdst ? "PDT" : "PST");
+        sp->tm_min, sp->tm_sec, 
+        sp->tm_isdst ? "PDT" : "PST");
     exit(0);
 }
