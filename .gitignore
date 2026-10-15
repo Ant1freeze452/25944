@@ -1,7 +1,20 @@
-task[0-9]
+task[0-9]*/task[0-9]*
+
+!task[0-9]*/task[0-9]*.c
+!task[0-9]*/task[0-9]*.h
+
 *.o
 *.out
+a.out
+
+# Vim
 *.swp
 *.swo
 *.swn
+
+# NFS
 .nfs*
+
+# Core dump
+core
+core.*
