@@ -1,20 +1,13 @@
-task[0-9]*/task[0-9]*
+task[0-9]*/*
 
-!task[0-9]*/task[0-9]*.c
-!task[0-9]*/task[0-9]*.h
+!task[0-9]*/*.c
 
-*.o
-*.out
-a.out
+!task[0-9]*/Makefile
 
-# Vim
 *.swp
 *.swo
 *.swn
-
-# NFS
 .nfs*
 
-# Core dump
 core
 core.*
