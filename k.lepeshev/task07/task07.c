@@ -197,17 +197,23 @@ int main(void){
     }
 
     int input_result = 0, print_result = 0;
+    int start_timer = 1;
 
     while(1){
         printf("Enter line number (0 to exit): ");
         fflush(stdout);
 
-        time_expired = 0;
-        alarm(5);
+        if(start_timer){
+            time_expired = 0;
+            alarm(5);
+            start_timer = 0;
+        }
 
         input_result = readLineNumber(&number);
 
-        alarm(0);
+        if(input_result == 1 && number >= 0 && (size_t)number <= idx){
+            alarm(0);
+        }
 
         if(time_expired){
             printf("\nTime's up. File contents:\n");
@@ -263,7 +269,11 @@ int main(void){
                 exit(1);
             }
         }
+
+        start_timer = 1;
     }
+
+    alarm(0);
 
     munmap(file_data, file_size);
 
