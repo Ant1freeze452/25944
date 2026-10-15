@@ -6,7 +6,7 @@
 #include <signal.h>
 
 #define MAX_LINES 1000
-#define BUFFER_SIZE 1000
+#define BUFFER_SIZE 4096
 
 typedef struct {
     off_t offset;
@@ -43,6 +43,7 @@ int main(int argc, char *argv[]) {
     int line_num;
     off_t pos;
     struct sigaction sa;
+    int first_request = 1;
 
     if (argc < 2) {
         filename = "test.txt";
@@ -102,14 +103,20 @@ int main(int argc, char *argv[]) {
         printf("Enter line number (0 to exit): ");
         fflush(stdout);
         
-        alarm(5);
+        if (first_request) {
+            alarm(5);
+        }
         
         if (!fgets(input, sizeof(input), stdin)) {
-            alarm(0);
+            if (first_request) alarm(0);
             break;
         }
         
-        alarm(0);
+        if (first_request) {
+            alarm(0);
+        }
+        
+        first_request = 0;
         
         line_num = strtol(input, &endptr, 10);
         
