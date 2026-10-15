@@ -1,6 +1,10 @@
-/m.bulygin/task*/*
-!/m.bulygin/task*/*.c
-!/m.bulygin/task*/Makefile
+/m.bulygin/task1/task1
+/m.bulygin/task2/task2
+/m.bulygin/task3/task3
+/m.bulygin/task4/task4
+/m.bulygin/task5/task5
+/m.bulygin/task6/task6
+/m.bulygin/task7/task7
 
 *.swp
 *.swo
@@ -9,3 +13,4 @@
 
 core
 core.*
+a.out
