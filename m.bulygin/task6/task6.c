@@ -32,79 +32,13 @@ void print_file(int fd)
 
     while ((n = read(fd, buffer, sizeof(buffer))) > 0)
     {
-        if (write(STDOUT_FILENO, buffer, n) == -1)
-        {
-            perror("write");
-            return;
-        }
+        printf("%.*s", (int)n, buffer);
     }
 
     if (n == -1)
     {
         perror("read");
     }
-}
-
-int read_line_number(long *number)
-{
-    char buffer[100];
-    int pos = 0;
-    char c;
-    ssize_t result;
-    char *end;
-
-    timeout = 0;
-    alarm(5);
-
-    while (pos < (int)sizeof(buffer) - 1)
-    {
-        result = read(STDIN_FILENO, &c, 1);
-
-        if (result == -1)
-        {
-            if (errno == EINTR && timeout)
-            {
-                alarm(0);
-                return 0;
-            }
-
-            perror("read");
-            alarm(0);
-            return -1;
-        }
-
-        if (result == 0)
-        {
-            alarm(0);
-            return -1;
-        }
-
-        if (c == '\n')
-        {
-            break;
-        }
-
-        buffer[pos] = c;
-        pos++;
-    }
-
-    alarm(0);
-
-    if (timeout)
-    {
-        return 0;
-    }
-
-    buffer[pos] = '\0';
-
-    *number = strtol(buffer, &end, 10);
-
-    if (end == buffer || *end != '\0')
-    {
-        return 2;
-    }
-
-    return 1;
 }
 
 int main(int argc, char *argv[])
@@ -120,10 +54,14 @@ int main(int argc, char *argv[])
     size_t capacity = 10;
 
     long line_number;
+    char input[100];
+    char *end;
     char *buffer;
     size_t total;
     size_t length;
     size_t i;
+
+    int first_input = 1;
 
     struct sigaction sa;
 
@@ -150,18 +88,6 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    sa.sa_handler = alarm_handler;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-
-    if (sigaction(SIGALRM, &sa, NULL) == -1)
-    {
-        perror("sigaction");
-        free(table);
-        close(fd);
-        return 1;
-    }
-
     while ((result = read(fd, &c, 1)) > 0)
     {
         if (c == '\n')
@@ -182,7 +108,8 @@ int main(int argc, char *argv[])
 
                 capacity *= 2;
 
-                temp = realloc(table, capacity * sizeof(struct Line));
+                temp = realloc(table,
+                               capacity * sizeof(struct Line));
 
                 if (temp == NULL)
                 {
@@ -229,7 +156,8 @@ int main(int argc, char *argv[])
 
             capacity *= 2;
 
-            temp = realloc(table, capacity * sizeof(struct Line));
+            temp = realloc(table,
+                           capacity * sizeof(struct Line));
 
             if (temp == NULL)
             {
@@ -244,6 +172,7 @@ int main(int argc, char *argv[])
 
         table[count].offset = line_start;
         table[count].length = position - line_start;
+
         count++;
     }
 
@@ -257,28 +186,72 @@ int main(int argc, char *argv[])
                (long)table[i].length);
     }
 
+    sa.sa_handler = alarm_handler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+
+    if (sigaction(SIGALRM, &sa, NULL) == -1)
+    {
+        perror("sigaction");
+        free(table);
+        close(fd);
+        return 1;
+    }
+
     while (1)
     {
-        int input_result;
-
-        printf("\nEnter line number (0 to exit, 5 seconds): ");
-        fflush(stdout);
-
-        input_result = read_line_number(&line_number);
-
-        if (input_result == 0)
+        if (first_input)
         {
-            printf("\nTime is over. File contents:\n\n");
-            print_file(fd);
+            timeout = 0;
+
+            printf("\nEnter line number (0 to exit, 5 seconds): ");
+            fflush(stdout);
+
+            alarm(5);
+        }
+        else
+        {
+            printf("\nEnter line number (0 to exit): ");
+            fflush(stdout);
+        }
+
+        errno = 0;
+
+        if (fgets(input, sizeof(input), stdin) == NULL)
+        {
+            if (first_input && timeout)
+            {
+                alarm(0);
+
+                printf("\nTime is over. File contents:\n\n");
+
+                print_file(fd);
+                break;
+            }
+
             break;
         }
 
-        if (input_result == -1)
+        if (first_input)
         {
-            break;
+            alarm(0);
+            first_input = 0;
         }
 
-        if (input_result == 2)
+        line_number = strtol(input, &end, 10);
+
+        if (end == input)
+        {
+            printf("Invalid input\n");
+            continue;
+        }
+
+        while (*end == ' ' || *end == '\t')
+        {
+            end++;
+        }
+
+        if (*end != '\n' && *end != '\0')
         {
             printf("Invalid input\n");
             continue;
@@ -289,19 +262,23 @@ int main(int argc, char *argv[])
             break;
         }
 
-        if (line_number < 1 || (size_t)line_number > count)
+        if (line_number < 1 ||
+            (size_t)line_number > count)
         {
             printf("No such line\n");
             continue;
         }
 
-        if (lseek(fd, table[line_number - 1].offset, SEEK_SET) == -1)
+        if (lseek(fd,
+                  table[line_number - 1].offset,
+                  SEEK_SET) == -1)
         {
             perror("lseek");
             break;
         }
 
-        length = (size_t)table[line_number - 1].length;
+        length =
+            (size_t)table[line_number - 1].length;
 
         buffer = malloc(length + 1);
 
@@ -315,7 +292,9 @@ int main(int argc, char *argv[])
 
         while (total < length)
         {
-            result = read(fd, buffer + total, length - total);
+            result = read(fd,
+                          buffer + total,
+                          length - total);
 
             if (result == -1)
             {
@@ -338,7 +317,8 @@ int main(int argc, char *argv[])
 
         printf("%s", buffer);
 
-        if (total > 0 && buffer[total - 1] != '\n')
+        if (total > 0 &&
+            buffer[total - 1] != '\n')
         {
             printf("\n");
         }

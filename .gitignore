@@ -1,0 +1,7 @@
+task[0-9]
+*.o
+*.out
+*.swp
+*.swo
+*.swn
+.nfs*
