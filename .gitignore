@@ -1,0 +1,16 @@
+/m.bulygin/task1/task1
+/m.bulygin/task2/task2
+/m.bulygin/task3/task3
+/m.bulygin/task4/task4
+/m.bulygin/task5/task5
+/m.bulygin/task6/task6
+/m.bulygin/task7/task7
+
+*.swp
+*.swo
+*.swn
+.nfs*
+
+core
+core.*
+a.out
