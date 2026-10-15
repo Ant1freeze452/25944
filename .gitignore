@@ -1,8 +1,6 @@
-task[0-9]*/*
-
-!task[0-9]*/*.c
-
-!task[0-9]*/Makefile
+/m.bulygin/task*/*
+!/m.bulygin/task*/*.c
+!/m.bulygin/task*/Makefile
 
 *.swp
 *.swo
