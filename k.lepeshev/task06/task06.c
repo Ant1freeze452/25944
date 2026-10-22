@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <errno.h>
+#include <string.h>
+#include <ctype.h>
 
 #define LIMIT 4096
 
@@ -82,7 +84,45 @@ int printWholeFile(int fd){
     }
 }
 
+int readLineNumber(long *number)
+{
+    char input[4096];
 
+    if(fgets(input, sizeof input, stdin) == NULL)
+        return -1;
+
+    size_t length = strlen(input);
+
+    if(length > 0 && input[length - 1] != '\n'){
+        int next = getchar();
+
+        if(next != '\n' && next != EOF){
+            while((next = getchar()) != '\n' && next != EOF);
+
+            return 0;
+        }
+    }
+
+    if(ferror(stdin))
+        return -1;
+
+    char *end;
+    errno = 0;
+
+    long value = strtol(input, &end, 10);
+
+    if(end == input || errno == ERANGE)
+        return 0;
+
+    while(isspace((unsigned char)*end))
+        end++;
+
+    if(*end != '\0')
+        return 0;
+
+    *number = value;
+    return 1;
+}
 
 int main(void){
     struct sigaction action = {0};
@@ -183,17 +223,23 @@ int main(void){
     }
 
     int input_result = 0, print_result = 0;
+    int start_timer = 1;
 
     while(1){
         printf("Enter line number (0 to exit): ");
         fflush(stdout);
 
-        time_expired = 0;
-        alarm(5);
+        if(start_timer){
+            time_expired = 0;
+            alarm(5);
+            start_timer = 0;
+        }
 
-        input_result = scanf("%ld", &number);
+        input_result = readLineNumber(&number);
 
-        alarm(0);
+        if(input_result == 1 && number >= 0 && (size_t)number <= idx){
+            alarm(0);
+        }
 
         if(time_expired){
             printf("\nTime's up. File contents:\n");
@@ -206,8 +252,13 @@ int main(void){
             return print_result == 0 ? 0 : 1;
         }
 
-        if(input_result != 1)
+        if(input_result == -1)
             break;
+
+        if(input_result == 0){
+            printf("Invalid line number\n");
+            continue;
+        }
 
         if(number == 0)
             break;
@@ -253,7 +304,10 @@ int main(void){
             printf("\n");
 
         free(buffer);
+        start_timer = 1;
     }
+
+    alarm(0);
 
     close(fd);
 

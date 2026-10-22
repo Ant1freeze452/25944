@@ -3,6 +3,9 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <string.h>  
+#include <errno.h>   
+#include <ctype.h>   
 
 #define LIMIT 4096
 
@@ -104,8 +107,44 @@ int main(void){
         printf("Enter line number (0 to exit): ");
         fflush(stdout);
 
-        if(scanf("%ld", &number) != 1)
+        // if(scanf("%ld", &number) != 1)
+        //     break;
+
+        char input[LIMIT];
+
+        if(fgets(input, sizeof(input), stdin) == NULL)
             break;
+
+        size_t input_length = strlen(input);
+
+        if(input_length > 0 && input[input_length - 1] != '\n'){
+            int next = getchar();
+
+            if(next != '\n' && next != EOF){
+                while((next = getchar()) != '\n' && next != EOF);
+
+                printf("Invalid line number\n");
+                continue;
+            }
+        }
+
+        char *end;
+        errno = 0;
+
+        number = strtol(input, &end, 10);
+
+        if(end == input || errno == ERANGE){
+            printf("Invalid line number\n");
+            continue;
+        }
+
+        while(isspace((unsigned char)*end))
+            end++;
+
+        if(*end != '\0'){
+            printf("Invalid line number\n");
+            continue;
+        }
 
         if(number == 0)
             break;
