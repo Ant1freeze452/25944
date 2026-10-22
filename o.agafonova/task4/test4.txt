@@ -1,0 +1,10 @@
+first
+
+
+sec[Aond
+de[3~l
+[A
+   spaces   
+last
+.
+ignored after dot
