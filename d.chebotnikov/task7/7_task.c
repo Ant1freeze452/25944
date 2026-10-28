@@ -17,12 +17,17 @@ typedef struct {
 static char *file_data;
 static size_t file_size;
 
+static void print_file(void)
+{
+    if (file_size != 0)
+        fwrite(file_data, 1, file_size, stdout);
+}
+
 static void timeout(int signal_number)
 {
     (void)signal_number;
     puts("\nTime is over. Complete file:");
-    if (file_size != 0)
-        fwrite(file_data, 1, file_size, stdout);
+    print_file();
     exit(EXIT_SUCCESS);
 }
 
@@ -80,9 +85,9 @@ int main(int argc, char **argv)
 
     for (;;) {
         if (first_input)
-            printf("Line number (5 seconds, 0 to quit): ");
+            printf("Line number (5 seconds, 0 to print file and quit): ");
         else
-            printf("Line number (0 to quit): ");
+            printf("Line number (0 to print file and quit): ");
         fflush(stdout);
         if (first_input)
             alarm(5);
@@ -100,8 +105,11 @@ int main(int argc, char **argv)
             puts("Invalid line number");
             continue;
         }
-        if (value == 0)
+        if (value == 0) {
+            puts("Complete file:");
+            print_file();
             break;
+        }
 
         if (value < 1 || value > lines) {
             printf("File has %d lines\n", lines);

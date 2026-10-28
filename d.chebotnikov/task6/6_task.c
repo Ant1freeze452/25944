@@ -16,16 +16,22 @@ typedef struct {
 
 static int fd;
 
-static void timeout(int signal_number)
+static void print_file(void)
 {
     char symbol;
+
+    lseek(fd, 0L, SEEK_SET);
+    while (read(fd, &symbol, 1) == 1)
+        write(STDOUT_FILENO, &symbol, 1);
+}
+
+static void timeout(int signal_number)
+{
     const char message[] = "\nTime is over. Complete file:\n";
 
     (void)signal_number;
     write(STDOUT_FILENO, message, sizeof message - 1);
-    lseek(fd, 0L, SEEK_SET);
-    while (read(fd, &symbol, 1) == 1)
-        write(STDOUT_FILENO, &symbol, 1);
+    print_file();
     close(fd);
     _exit(EXIT_SUCCESS);
 }
@@ -77,9 +83,9 @@ int main(int argc, char **argv)
 
     for (;;) {
         if (first_input)
-            printf("Line number (5 seconds, 0 to quit): ");
+            printf("Line number (5 seconds, 0 to print file and quit): ");
         else
-            printf("Line number (0 to quit): ");
+            printf("Line number (0 to print file and quit): ");
         fflush(stdout);
         if (first_input)
             alarm(5);
@@ -97,8 +103,12 @@ int main(int argc, char **argv)
             puts("Invalid line number");
             continue;
         }
-        if (value == 0)
+        if (value == 0) {
+            puts("Complete file:");
+            fflush(stdout);
+            print_file();
             break;
+        }
 
         if (value < 1 || value > lines) {
             printf("File has %d lines\n", lines);

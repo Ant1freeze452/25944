@@ -10,6 +10,22 @@
 
 extern char **environ;
 
+static void print_help(const char *program)
+{
+    printf("Usage: %s options\n", program);
+    puts("Available options:");
+    puts("  -i             print user and group identifiers");
+    puts("  -s             make the process a process-group leader");
+    puts("  -p             print process identifiers");
+    puts("  -u             print the current ulimit value");
+    puts("  -Unew_ulimit   set a new ulimit value");
+    puts("  -c             print the maximum core-file size");
+    puts("  -Csize         set the maximum core-file size");
+    puts("  -d             print the current working directory");
+    puts("  -v             print environment variables");
+    puts("  -Vname=value   add or change an environment variable");
+}
+
 static int number(char *s, long *n)
 {
     char *end;
@@ -93,6 +109,11 @@ static int options(int argc, char **argv)
 
 int main(int argc, char **argv)
 {
+    if (argc == 1) {
+        print_help(argv[0]);
+        return EXIT_SUCCESS;
+    }
+
     opterr = 0;
     return options(argc, argv) == -1 ? EXIT_FAILURE : EXIT_SUCCESS;
 }
