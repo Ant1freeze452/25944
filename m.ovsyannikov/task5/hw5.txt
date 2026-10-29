@@ -1,0 +1,7 @@
+alpha
+meow
+
+delta
+gaf
+x
+last line without newline
